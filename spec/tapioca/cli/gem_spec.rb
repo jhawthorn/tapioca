@@ -2041,12 +2041,71 @@ module Tapioca
         assert_success_status(result)
       end
 
-      it 'TODO' do
+      it "TODO" do
         @project.require_real_gem("eventmachine", "1.2.7")
         @project.require_real_gem("em-synchrony", "1.0.6")
         @project.bundle_install
 
-        @project.tapioca("gem eventmachine em-synchrony")
+        result = @project.tapioca("gem eventmachine em-synchrony")
+
+        puts result.out
+        puts "\n-----\n"
+        puts @project.read("sorbet/rbi/gems/em-synchrony@1.0.6.rbi").lines[6..9]
+
+        result = @project.bundle_exec("srb tc .")
+        assert_empty_stderr(result)
+        assert_success_status(result)
+      end
+
+      it "two gems reference the same aliased constant" do
+        foo = mock_gem("foo", "0.0.1") do
+          write("lib/foo.rb", <<~RB)
+            module Foo; end
+            F = Foo
+          RB
+        end
+
+        bar = mock_gem("bar", "0.0.1") do
+          write("lib/bar.rb", <<~RB)
+            module Bar; end
+            F::B = Bar
+          RB
+        end
+
+        @project.require_mock_gem(foo, require: false)
+        @project.require_mock_gem(bar, require: false)
+        @project.bundle_install
+
+        result = @project.tapioca("gem foo bar")
+
+        puts result.out
+        puts "\n-----\n"
+        puts @project.read("sorbet/rbi/gems/bar@0.0.1.rbi")
+
+        result = @project.bundle_exec("srb tc .")
+        assert_empty_stderr(result)
+        assert_success_status(result)
+      end
+
+      it "one gem references the same aliased constant twice" do
+        foo = mock_gem("foo", "0.0.1") do
+          write("lib/foo.rb", <<~RB)
+            module Foo; end
+            F = Foo
+            module Bar; end
+            F::B = Bar
+          RB
+        end
+
+        @project.require_mock_gem(foo, require: false)
+        @project.bundle_install
+
+        result = @project.tapioca("gem foo")
+
+        puts result.out
+        puts "\n-----\n"
+        puts @project.read("sorbet/rbi/gems/foo@0.0.1.rbi")
+
         result = @project.bundle_exec("srb tc .")
         assert_empty_stderr(result)
         assert_success_status(result)

@@ -193,6 +193,7 @@ module Tapioca
         return if skip_symbol?(symbol)
 
         constant = constantize(symbol)
+        puts "***** symbol: #{symbol} / constant: #{constant} *****"
         push_constant(symbol, constant) if Runtime::Reflection.constant_defined?(constant)
       end
 
@@ -233,9 +234,11 @@ module Tapioca
           if name_of(constant) != symbol
             compile_alias(symbol, constant)
           else
+            # puts "***** compiling module: #{symbol} *****"
             compile_module(symbol, constant)
           end
         else
+          # puts "***** compiling object: #{symbol} *****"
           compile_object(symbol, constant)
         end
       end
@@ -248,9 +251,30 @@ module Tapioca
 
         return if skip_alias?(name, constant)
 
+        parts = name.split("::")
+        if parts.length > 1
+          prefix = parts[0..-2]
+          namespace = T.let([],  T::Array[String])
+          T.must(prefix).each do |part|
+            prefix_namespace = "#{namespace.join("::")}::#{part}"
+            prefix_const = constantize(prefix_namespace)
+
+            next unless Module === prefix_const
+
+            prefix_name = name_of(prefix_const)
+            next unless prefix_name
+
+            namespace << prefix_name
+          end
+
+          name = namespace.join("::") + "::" + T.must(parts.last)
+        end
         target = name_of(constant)
         # If target has no name, let's make it an anonymous class or module with `Class.new` or `Module.new`
         target = "#{constant.class}.new" unless target
+        # puts "***** #{name.split("::").} *****"
+        puts "***** target: #{name} = #{target} *****"
+        return if name == target
 
         add_to_alias_namespace(name)
 

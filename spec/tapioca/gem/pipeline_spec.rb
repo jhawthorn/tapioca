@@ -4283,5 +4283,26 @@ class Tapioca::Gem::PipelineSpec < Minitest::HooksSpec
 
       assert_equal(output, compile)
     end
+
+    it "compiles namespaced aliases (?)" do
+      add_ruby_file("foo.rb", <<~RUBY)
+        module Foo; end
+        F = Foo
+      RUBY
+
+      add_ruby_file("bar.rb", <<~RUBY)
+        module Bar; end
+        F::B = Bar
+      RUBY
+
+      output = template(<<~RBI)
+        module Bar; end
+        F = Foo
+        module Foo; end
+        Foo::B = Bar
+      RBI
+
+      assert_equal(output, compile)
+    end
   end
 end
