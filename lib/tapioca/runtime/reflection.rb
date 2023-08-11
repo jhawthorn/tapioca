@@ -255,6 +255,28 @@ module Tapioca
       def method_defined_by_forwardable_module?(method)
         method.source_location&.first == Object.const_source_location(:Forwardable)&.first
       end
+
+      sig { params(name: String).returns(String) }
+      def dealias_constant_prefix(name)
+        parts = name.split("::")
+        return name if parts.length == 1
+
+        prefix = parts[0..-2]
+        namespace = T.let([],  T::Array[String])
+        T.must(prefix).each do |part|
+          prefix_namespace = "#{namespace.join("::")}::#{part}"
+          prefix_const = constantize(prefix_namespace)
+
+          next unless Module === prefix_const
+
+          prefix_name = name_of(prefix_const)
+          next unless prefix_name
+
+          namespace << prefix_name
+        end
+
+        namespace.join("::") + "::" + T.must(parts.last)
+      end
     end
   end
 end
